@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/finance_db
+    username: postgres
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+server:
+  port: 8080

@@ -1,0 +1,156 @@
+<div class="dash" *ngIf="dash() as d">
+  <header class="header">
+    <h1>Personal Finance Tracker</h1>
+    <div class="csv-upload">
+      <label class="btn-alt">
+        Import CSV Statement
+        <input type="file" (change)="uploadCsv($event)" accept=".csv" style="display: none;" />
+      </label>
+    </div>
+  </header>
+
+  <section class="cards">
+    <div class="card">
+      <span class="label">Monthly Income</span>
+      <span class="val pos">${{ d.totalIncome | number:'1.2-2' }}</span>
+    </div>
+    <div class="card">
+      <span class="label">Monthly Expenses</span>
+      <span class="val neg">${{ d.totalExpense | number:'1.2-2' }}</span>
+    </div>
+    <div class="card">
+      <span class="label">Net Savings</span>
+      <span class="val" [class.pos]="d.netSavings >= 0" [class.neg]="d.netSavings < 0">${{ d.netSavings | number:'1.2-2' }}</span>
+    </div>
+    <div class="card">
+      <span class="label">Savings Rate</span>
+      <span class="val">{{ d.savingsRate | number:'1.1-1' }}%</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="box">
+      <h2>Category Budgets (Budget vs Actual)</h2>
+      <div class="budget-list">
+        <div class="budget-item" *ngFor="let b of d.budgets">
+          <div class="b-header">
+            <strong>{{ b.category }}</strong>
+            <span [class.neg]="b.over">${{ b.spent | number:'1.0-0' }} / ${{ b.monthlyLimit | number:'1.0-0' }}</span>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill" [style.width.%]="b.pct > 100 ? 100 : b.pct" [class.bar-over]="b.over"></div>
+          </div>
+          <small *ngIf="!b.over">${{ b.remaining | number:'1.0-0' }} remaining</small>
+          <small class="neg" *ngIf="b.over">Over budget by ${{ (b.spent - b.monthlyLimit) | number:'1.0-0' }}!</small>
+        </div>
+      </div>
+      <form class="inline-form" (ngSubmit)="saveBudget()">
+        <input [(ngModel)]="newBudget.category" name="bCat" placeholder="Category" required />
+        <input [(ngModel)]="newBudget.monthlyLimit" name="bLimit" type="number" placeholder="Limit" required />
+        <button type="submit" class="btn">Set Budget</button>
+      </form>
+    </section>
+
+    <div class="chart-stack">
+      <section class="box">
+        <h2>Spending by Category</h2>
+        <canvas #catCanvas></canvas>
+      </section>
+      <section class="box">
+        <h2>Income vs Expense Trend</h2>
+        <canvas #trendCanvas></canvas>
+      </section>
+    </div>
+  </div>
+
+  <section class="box">
+    <h2>Savings Goals & Projections</h2>
+    <div class="goal-grid">
+      <div class="goal-card" *ngFor="let g of d.goals">
+        <div class="b-header">
+          <strong>{{ g.name }}</strong>
+          <span>${{ g.currentAmount | number:'1.0-0' }} / ${{ g.targetAmount | number:'1.0-0' }}</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bar-goal" [style.width.%]="g.progressPct"></div>
+        </div>
+        <p class="proj-text">
+          Target: {{ g.targetDate }} | Estimated: <strong>{{ g.projectedDate }}</strong>
+          <span class="badge" [class.badge-active]="g.onTrack" [class.badge-done]="!g.onTrack">
+            {{ g.onTrack ? 'On Track' : 'Behind' }}
+          </span>
+        </p>
+        <div class="inline-form">
+          <button class="btn-alt" (click)="updateGoalDeposit(g, 50)">+ $50</button>
+          <button class="btn-alt" (click)="updateGoalDeposit(g, 200)">+ $200</button>
+          <button class="btn-del" (click)="deleteGoal(g.id)">?</button>
+        </div>
+      </div>
+    </div>
+    <form class="inline-form" (ngSubmit)="saveGoal()" style="margin-top: 16px;">
+      <input [(ngModel)]="newGoal.name" name="gName" placeholder="Goal Name (e.g. Vacation)" required />
+      <input [(ngModel)]="newGoal.targetAmount" name="gTarget" type="number" placeholder="Target ($)" required />
+      <input [(ngModel)]="newGoal.currentAmount" name="gCurrent" type="number" placeholder="Saved ($)" required />
+      <input [(ngModel)]="newGoal.targetDate" name="gDate" type="date" required />
+      <button type="submit" class="btn">Add Goal</button>
+    </form>
+  </section>
+
+  <div class="grid">
+    <section class="box">
+      <h2>Recent Transactions</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let t of d.recentTransactions">
+            <td>{{ t.date }}</td>
+            <td>
+              {{ t.description }}
+              <span class="badge badge-active" *ngIf="t.recurring">Recurring</span>
+            </td>
+            <td>{{ t.category }}</td>
+            <td [class.pos]="t.type === 'INCOME'" [class.neg]="t.type === 'EXPENSE'">
+              {{ t.type === 'INCOME' ? '+' : '-' }}${{ t.amount | number:'1.2-2' }}
+            </td>
+            <td><button class="btn-del" (click)="deleteTx(t.id)">?</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <form class="inline-form" (ngSubmit)="saveTx()">
+        <input [(ngModel)]="newTx.date" name="tDate" type="date" required />
+        <input [(ngModel)]="newTx.description" name="tDesc" placeholder="Description" required />
+        <input [(ngModel)]="newTx.amount" name="tAmt" type="number" step="any" placeholder="Amount" required />
+        <input [(ngModel)]="newTx.category" name="tCat" placeholder="Category" required />
+        <select [(ngModel)]="newTx.type" name="tType">
+          <option value="EXPENSE">Expense</option>
+          <option value="INCOME">Income</option>
+        </select>
+        <button type="submit" class="btn">Add</button>
+      </form>
+    </section>
+
+    <section class="box">
+      <h2>Detected Recurring Subscriptions</h2>
+      <div class="budget-list">
+        <div class="budget-item" *ngFor="let r of d.recurring">
+          <div class="b-header">
+            <strong>{{ r.description }}</strong>
+            <span class="neg">-${{ r.amount | number:'1.2-2' }}</span>
+          </div>
+          <small>{{ r.category }} • Detected in {{ r.count }} transactions</small>
+        </div>
+        <p *ngIf="d.recurring.length === 0" style="color: #6b7280; font-size: 0.875rem;">
+          No recurring subscriptions detected yet.
+        </p>
+      </div>
+    </section>
+  </div>
+</div>
